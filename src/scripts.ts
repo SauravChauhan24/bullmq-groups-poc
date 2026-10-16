@@ -56,7 +56,7 @@ export function createGroupRedis(connection: ConnectionOptions | undefined, opts
  * made by another copy of ioredis (pnpm, or an app's ioredis not deduplicated with ours) is
  * accepted, as BullMQ accepts it.
  */
-function isRedisInstance(o: unknown): o is Redis | Cluster {
+export function isRedisInstance(o: unknown): o is Redis | Cluster {
   return !!o && ['connect', 'disconnect', 'duplicate'].every(n => typeof (o as Record<string, unknown>)[n] === 'function');
 }
 
