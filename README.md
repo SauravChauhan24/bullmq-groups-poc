@@ -165,7 +165,7 @@ The package uses BullMQ's public API (`Queue.add/addBulk/getJob`, `Job.retry/rem
 - `Job.validateOptions`, to check options before a job is stored;
 - the `Job` class getter, so queues and workers hand out `GroupJob`s.
 
-Its scripts read one BullMQ key: a job's hash, for whether it exists and which nonce its options carry. The same 70 tests pass on BullMQ **5.40.0** (the oldest supported), **5.67.1**, **5.81.5** and **6.3.15** (latest).
+Its scripts read one BullMQ key: a job's hash, for whether it exists and which nonce its options carry. The same 71 tests pass on BullMQ **5.40.0** (the oldest supported), **5.67.1**, **5.81.5** and **6.3.15** (latest).
 
 ## Why this design
 
@@ -181,7 +181,7 @@ Another option is to let the worker pick the next eligible group when it fetches
 
 ## Edge cases
 
-Each answer is covered by the tests named. `edge-cases` holds the rarer failure modes: commands resent after a reconnect, a late `Queue.add`, reused job ids, options BullMQ refuses, a Redis out-of-memory error while handing jobs to BullMQ, and races between the reconciler, retries and skips.
+Each answer is covered by the tests named. `edge-cases` holds the rarer failure modes: commands resent after a reconnect, a late `Queue.add`, reused job ids, options BullMQ refuses, a Redis out-of-memory error while handing jobs to BullMQ, races between the reconciler, retries and skips, and a Redis client made by another copy of ioredis.
 
 | Edge case | Answer | Tests |
 | --- | --- | --- |
@@ -318,7 +318,7 @@ See [bench/RESULTS.md](bench/RESULTS.md) for every number and its setup. Headlin
 ```bash
 npm install
 npm run redis:up            # throwaway Redis 7 on 127.0.0.1:6390, persistence off (npm run redis:down)
-npm test                    # 70 tests against BullMQ 5.81.5 and @nestjs/bullmq 10.2.3 (~2 min)
+npm test                    # 71 tests against BullMQ 5.81.5 and @nestjs/bullmq 10.2.3 (~2 min)
 npm run test:min            # the same tests against BullMQ 5.40.0, the oldest supported, in a temp copy
 npm run test:v6             # ... against 6.3.15 (with @nestjs/bullmq 11.0.5); any version: npm run test:bullmq -- <version>
 bash bench/all.sh           # whole benchmark matrix (~25 min, quiet machine). FLUSHES the Redis at port 6390.

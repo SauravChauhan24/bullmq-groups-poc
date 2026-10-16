@@ -645,3 +645,33 @@ test("after switching failurePolicy to 'continue', a blocked group with nothing 
     await h.close();
   }
 });
+
+test('a Redis client from another copy of ioredis (pnpm, or a nested install) is accepted, as BullMQ accepts it', async () => {
+  // Load ioredis a second time: an app gets its own copy when its ioredis is not deduplicated with ours.
+  const cached = Object.keys(require.cache).filter(k => /[\\/]node_modules[\\/]ioredis[\\/]/.test(k));
+  const saved = cached.map(k => [k, require.cache[k]] as const);
+  cached.forEach(k => delete require.cache[k]);
+  let OtherIORedis: typeof IORedis;
+  try {
+    OtherIORedis = require('ioredis');
+  } finally {
+    saved.forEach(([k, m]) => (require.cache[k] = m));
+  }
+  const shared = new OtherIORedis({ ...connection, maxRetriesPerRequest: null });
+  assert.equal(shared instanceof IORedis, false, 'a client of a separate ioredis class');
+  const name = `other-ioredis-${process.pid}`;
+  const q = new GroupQueue(name, { connection: shared });
+  const w = new GroupWorker(name, async job => job.gid, { connection: shared, group: { concurrency: 1 } });
+  try {
+    const ran: string[] = [];
+    w.on('completed', (_job, gid) => ran.push(gid));
+    await q.add('n', {}, { group: { id: 'G' } });
+    await waitFor(() => ran.length === 1, 'the grouped job');
+    assert.deepEqual(ran, ['G']);
+  } finally {
+    await w.close();
+    await q.obliterate({ force: true });
+    await q.close();
+    await shared.quit();
+  }
+});

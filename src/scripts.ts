@@ -37,12 +37,10 @@ export function createGroupRedis(connection: ConnectionOptions | undefined, opts
   const override: Partial<RedisOptions> = opts.worker ? { maxRetriesPerRequest: null } : {};
   connection ??= {}; // as BullMQ: no connection means localhost:6379
   let client: Redis | Cluster;
-  if (connection instanceof IORedis) {
-    client = connection.duplicate(override);
-  } else if (connection instanceof Cluster) {
-    client = connection.duplicate();
-  } else if (typeof (connection as { duplicate?: unknown }).duplicate === 'function') {
-    throw new Error('Pass ioredis options or an ioredis instance; other client types are not supported by bullmq-groups');
+  if (isRedisInstance(connection)) {
+    client = (connection as { isCluster?: boolean }).isCluster
+      ? (connection as Cluster).duplicate()
+      : (connection as Redis).duplicate(override);
   } else {
     const { url, ...rest } = connection as RedisOptions & { url?: string };
     client = url ? new IORedis(url, { ...rest, ...override }) : new IORedis({ ...rest, ...override });
@@ -51,6 +49,15 @@ export function createGroupRedis(connection: ConnectionOptions | undefined, opts
     client.defineCommand(`gq_${name}`, { numberOfKeys: 1, lua });
   }
   return client as GroupRedis;
+}
+
+/**
+ * A Redis client, told apart the way BullMQ does it: by its methods, not `instanceof`, so a client
+ * made by another copy of ioredis (pnpm, or an app's ioredis not deduplicated with ours) is
+ * accepted, as BullMQ accepts it.
+ */
+function isRedisInstance(o: unknown): o is Redis | Cluster {
+  return !!o && ['connect', 'disconnect', 'duplicate'].every(n => typeof (o as Record<string, unknown>)[n] === 'function');
 }
 
 /**
